@@ -1,39 +1,41 @@
 use reqwest;
 use rusqlite::{params, Connection, Result};
 use std::error::Error;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
+use tokio::time;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let url = "https://google.com";
+    loop {
+        let url = "https://google.com";
 
-    let response = reqwest::get(url).await;
+        let response = reqwest::get(url).await;
 
-    let now = SystemTime::now();
-    let timestamp = now.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
+        let now = SystemTime::now();
+        let timestamp = now.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
 
-    let status = match response {
-        Ok(resp) => {
-            if resp.status().is_success() {
-                println!("The website is up!");
-                "up"
-            } else {
-                println!("The website is down! Status code: {}", resp.status());
-                "down"
+        let status = match response {
+            Ok(resp) => {
+                if resp.status().is_success() {
+                    println!("{} is up!", url);
+                    "up"
+                } else {
+                    println!("The website is down! Status code: {}", resp.status());
+                    "down"
+                }
             }
-        }
-        Err(err) => {
-            println!("Failed to check the website. Error: {}", err);
-            "error"
-        }
-    };
+            Err(err) => {
+                println!("Failed to check the website. Error: {}", err);
+                "error"
+            }
+        };
 
-    let conn = Connection::open("website_status.db")?;
-    save_status_to_db(&conn, url, timestamp, status)?;
+        let conn = Connection::open("uptime_monitor.db")?;
+        save_status_to_db(&conn, url, timestamp, status)?;
 
-    Ok(())
+        time::sleep(Duration::from_secs(60)).await;
+    }
 }
-
 
 fn save_status_to_db(conn: &Connection, url: &str, timestamp: u64, status: &str) -> Result<()> {
     conn.execute(
