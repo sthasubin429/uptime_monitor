@@ -8,7 +8,8 @@ pub fn initialize_database() -> Result<()> {
             id INTEGER PRIMARY KEY,
             url TEXT NOT NULL,
             timestamp INTEGER NOT NULL,
-            status TEXT NOT NULL
+            status BOOLEAN NOT NULL,
+            status_code INTEGER NOT NULL
         )",
         [],
     )?;
