@@ -13,43 +13,50 @@ struct WebsiteStatus {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    let urls: Vec<&str> = vec![
+        "https://google.com",
+        "https://www.subinstha.com.np/",
+        "https://www.outcodesoftware.com/",
+        "https://asdasdasdasdasdasdasw2123.com",
+    ];
+
     loop {
-        let url: &str = "https://asdasdasdasdasdasdasw2123.com";
-        time::sleep(Duration::from_secs(10)).await;
+        time::sleep(Duration::from_secs(60)).await;
+        for url in &urls {
+            let response: reqwest::Response = match reqwest::get(*url).await {
+                Ok(response) => response,
+                Err(err) => {
+                    println!("Error: {}", err);
 
-        let response: reqwest::Response = match reqwest::get(url).await {
-            Ok(response) => response,
-            Err(err) => {
-                println!("Error: {}", err);
+                    let now: SystemTime = SystemTime::now();
+                    let timestamp: u64 = now.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
+                    let status: WebsiteStatus = WebsiteStatus {
+                        url: url.to_string(),
+                        timestamp,
+                        status: false,
+                        status_code: 0, // Set status code to 0 for DNS error
+                    };
+                    save_status_to_db(&status)?;
 
-                let now: SystemTime = SystemTime::now();
-                let timestamp: u64 = now.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
-                let status: WebsiteStatus = WebsiteStatus {
-                    url: url.to_string(),
-                    timestamp,
-                    status: false,
-                    status_code: 0, // Set status code to 0 for DNS error
-                };
-                save_status_to_db(&status)?;
+                    continue;
+                }
+            };
 
-                continue;
-            }
-        };
+            let now: SystemTime = SystemTime::now();
+            let timestamp: u64 = now.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
+            let is_up: bool = response.status().is_success();
+            let status_code: u16 = response.status().as_u16();
 
-        let now: SystemTime = SystemTime::now();
-        let timestamp: u64 = now.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
-        let is_up: bool = response.status().is_success();
-        let status_code: u16 = response.status().as_u16();
+            log_status_message(url, is_up, status_code);
 
-        log_status_message(&url, is_up, status_code);
-
-        let status: WebsiteStatus = WebsiteStatus {
-            url: url.to_string(),
-            timestamp,
-            status: is_up,
-            status_code,
-        };
-        save_status_to_db(&status)?;
+            let status: WebsiteStatus = WebsiteStatus {
+                url: url.to_string(),
+                timestamp,
+                status: is_up,
+                status_code,
+            };
+            save_status_to_db(&status)?;
+        }
     }
 }
 
